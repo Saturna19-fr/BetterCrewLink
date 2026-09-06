@@ -12,9 +12,13 @@ files:
 
 win:
   publish:
-    - github
+    - provider: github
+      owner: Saturna19-fr
+      repo: BetterCrewLink
 linux:
   target:
     - "AppImage"
   publish:
-    - github
+    - provider: github
+      owner: Saturna19-fr
+      repo: BetterCrewLink

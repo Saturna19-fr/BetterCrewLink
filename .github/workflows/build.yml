@@ -6,6 +6,9 @@ concurrency:
 
 on: [push, pull_request, workflow_dispatch]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -35,7 +38,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 16.14.2
-        
+
       - name: Cache Node Modules
         id: node-cache
         uses: actions/cache@v4
@@ -44,8 +47,8 @@ jobs:
             node_modules
             .yarn
           key: ${{ runner.os }}-3-${{ hashFiles('yarn.lock')}}
-    
-    
+
+
       - name: Install Python 3.11 (node-gyp 8 needs distutils)
         uses: actions/setup-python@v5
         with:
@@ -54,20 +57,79 @@ jobs:
       - name: Install Dependencies
         if: steps.node-cache.outputs.cache-hit != 'true'
         run: yarn install  --cache-folder .yarn --network-timeout 100000
-        
+
       - name: Build App
         run: yarn run ${{ matrix.dist }} --publish never
-     
+
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
           name: BetterCrewLink Installer ${{ runner.os }}
           path: ${{ matrix.installer }}
           if-no-files-found: error
-          
+
+      # Update manifests + blockmaps let the in-app auto-updater consume the release assets.
+      - name: Upload Update Metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: BetterCrewLink Update Metadata ${{ runner.os }}
+          path: |
+            dist/latest*.yml
+            dist/*.blockmap
+          if-no-files-found: ignore
+
       - name: Upload Unpacked
         uses: actions/upload-artifact@v4
         if: ${{ matrix.os == 'windows-2022'}}
         with:
-          name: BetterCrewLink Unpacked 64bit 
+          name: BetterCrewLink Unpacked 64bit
           path: 'dist/win-unpacked'
+
+  # Publishes the installers as a GitHub Release so the .exe / .AppImage can be downloaded
+  # directly (no artifact zip). Pushes to `nightly` update a rolling "nightly" pre-release;
+  # pushing a tag like `v3.2.0` creates a proper release for that version.
+  release:
+    needs: build
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/nightly' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: 'BetterCrewLink Installer *'
+          merge-multiple: true
+
+      - name: Download update metadata
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: 'BetterCrewLink Update Metadata *'
+          merge-multiple: true
+
+      - name: List release files
+        run: ls -la artifacts
+
+      - name: Reset rolling nightly tag
+        if: ${{ github.ref == 'refs/heads/nightly' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete nightly --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'nightly' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'Nightly build' }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          body: ${{ github.ref == 'refs/heads/nightly' && format('Automatic build of `nightly` at {0}.', github.sha) || '' }}
+          files: |
+            artifacts/*.exe
+            artifacts/*.AppImage
+            artifacts/*.yml
+            artifacts/*.blockmap
