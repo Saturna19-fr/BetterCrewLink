@@ -45,7 +45,7 @@ const Divider = withStyles((theme) => ({
 const useStyles = makeStyles((theme) => ({
 	root: {
 		width: '100vw',
-		height: `calc(100vh - ${theme.spacing(3)})`,
+		height: 'calc(100vh - 87px)',
 		background: '#171717ad',
 		backdropFilter: 'blur(4px)',
 		position: 'absolute',
@@ -53,7 +53,7 @@ const useStyles = makeStyles((theme) => ({
 		top: 0,
 		zIndex: 99,
 		alignItems: 'center',
-		marginTop: theme.spacing(3),
+		marginTop: 87,
 		transition: 'transform .1s ease-in-out',
 		WebkitAppRegion: 'no-drag',
 		transform: ({ open }: StyleInput) => (open ? 'translateX(0)' : 'translateX(-100%)'),
@@ -74,7 +74,7 @@ const useStyles = makeStyles((theme) => ({
 		justifyContent: 'start',
 		alignItems: 'center',
 		paddingBottom: theme.spacing(7),
-		height: `calc(100vh - 40px - ${theme.spacing(7 + 3 + 3)})`,
+		height: 'calc(100vh - 87px - 40px - 56px)',
 	},
 	shortcutField: {
 		marginTop: theme.spacing(1),

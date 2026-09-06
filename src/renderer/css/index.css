@@ -1,18 +1,32 @@
-/* @import url('https://fonts.googleapis.com/css2?family=Varela&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@500&display=swap'); */
-
-
+/* Window is transparent so the 17px rounded corners of the design show through. */
 body {
-	background-color: #25232a;
+	background-color: transparent;
 	color: white;
-	font-family: 'Varela', sans-serif;
+	font-family: 'Roboto', 'Varela', sans-serif;
 	margin: 0;
 	overflow: hidden;
 }
 
+body,
 #app {
 	width: 100vw;
 	height: 100vh;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
+#app {
+	position: relative;
+	background-color: #242424;
+	border-radius: 17px;
+	color: white;
+	font-family: 'Roboto', 'Varela', sans-serif;
+}
+
+/* MUI dialogs are portalled outside #app; keep their backdrop inside the rounded window. */
+.MuiBackdrop-root {
+	border-radius: 17px;
 }
 
 .react-tooltip-lite {
@@ -21,12 +35,8 @@ body {
 	border-radius: 5px;
 }
 
-.otherplayers > * {
-	margin: 5px;
-}
-
 ::-webkit-scrollbar {
-	width: 8px;
+	width: 6px;
 	margin-left: 2px;
 }
 
@@ -42,16 +52,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
 	background: rgba(255, 255, 255, 0.3);
 }
-
-.otherplayers {
-	display: flex;
-	flex-direction: row;
-	justify-content: center;
-	align-items: center;
-	width: 100%;
-	flex-wrap: wrap;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-

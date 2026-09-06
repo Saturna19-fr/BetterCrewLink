@@ -7,7 +7,7 @@ import Settings from './settings/Settings';
 import SettingsStore, { setSetting, setLobbySetting } from './settings/SettingsStore';
 import { GameStateContext, SettingsContext, PlayerColorContext, HostSettingsContext } from './contexts';
 import { ThemeProvider, Theme, StyledEngineProvider } from '@mui/material/styles';
-import makeStyles from '@mui/styles/makeStyles';
+import Header from './ui/Header';
 import {
 	AutoUpdaterState,
 	IpcHandlerMessages,
@@ -16,10 +16,6 @@ import {
 	IpcSyncMessages,
 } from '../common/ipc-messages';
 import theme from './theme';
-import SettingsIcon from '@mui/icons-material/Settings';
-import RefreshSharpIcon from '@mui/icons-material/RefreshSharp';
-import CloseIcon from '@mui/icons-material/Close';
-import IconButton from '@mui/material/IconButton';
 import Dialog from '@mui/material/Dialog';
 import LinearProgress from '@mui/material/LinearProgress';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -31,6 +27,9 @@ import prettyBytes from 'pretty-bytes';
 import { IpcOverlayMessages } from '../common/ipc-messages';
 import ReactDOM from 'react-dom';
 import './css/index.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+import '@fontsource/roboto/700.css';
 import 'source-code-pro/source-code-pro.css';
 import 'typeface-varela/index.css';
 import { DEFAULT_PLAYERCOLORS } from '../main/avatarGenerator';
@@ -38,12 +37,10 @@ import './language/i18n';
 import { withNamespaces } from 'react-i18next';
 import { ISettings } from '../common/ISettings';
 
-
 declare module '@mui/styles/defaultTheme' {
 	// eslint-disable-next-line @typescript-eslint/no-empty-interface
-	interface DefaultTheme extends Theme { }
+	interface DefaultTheme extends Theme {}
 }
-
 
 let appVersion = '';
 if (typeof window !== 'undefined' && window.location) {
@@ -51,70 +48,35 @@ if (typeof window !== 'undefined' && window.location) {
 	appVersion = ' v' + query.get('version') || '';
 }
 
-const useStyles = makeStyles(() => ({
-	root: {
-		position: 'absolute',
-		width: '100vw',
-		height: theme.spacing(3),
-		backgroundColor: '#1d1a23',
-		top: 0,
-		WebkitAppRegion: 'drag',
-		zIndex: 100,
-	},
-	title: {
-		width: '100%',
-		textAlign: 'center',
-		display: 'block',
-		height: theme.spacing(3),
-		lineHeight: theme.spacing(3),
-		color: theme.palette.primary.main,
-	},
-	button: {
-		WebkitAppRegion: 'no-drag',
-		marginLeft: 'auto',
-		padding: 0,
-		position: 'absolute',
-		top: 0,
-	},
-}));
+const APP_TITLE = 'BetterCrewLink - A Saturn Edition';
 
 interface TitleBarProps {
 	settingsOpen: boolean;
 	setSettingsOpen: Dispatch<SetStateAction<boolean>>;
+	devOpen: boolean;
+	setDevOpen: Dispatch<SetStateAction<boolean>>;
 }
 
-const RawTitleBar: React.FC<TitleBarProps> = function ({ settingsOpen, setSettingsOpen }: TitleBarProps) {
-	const classes = useStyles();
+const RawTitleBar: React.FC<TitleBarProps> = function ({
+	settingsOpen,
+	setSettingsOpen,
+	devOpen,
+	setDevOpen,
+}: TitleBarProps) {
 	return (
-		<div className={classes.root}>
-			<span className={classes.title} style={{ marginLeft: 10 }}>
-				BetterCrewLink{appVersion}
-			</span>
-			<IconButton
-				className={classes.button}
-				style={{ left: 0 }}
-				size="small"
-				onClick={() => setSettingsOpen(!settingsOpen)}
-			>
-				<SettingsIcon htmlColor="#777" />
-			</IconButton>
-			<IconButton
-				className={classes.button}
-				style={{ left: 22 }}
-				size="small"
-				onClick={() => ipcRenderer.send('reload')}
-			>
-				<RefreshSharpIcon htmlColor="#777" />
-			</IconButton>
-			<IconButton
-				className={classes.button}
-				style={{ right: 0 }}
-				size="small"
-				onClick={() => ipcRenderer.send(IpcMessages.QUIT_CREWLINK)}
-			>
-				<CloseIcon htmlColor="#777" />
-			</IconButton>
-		</div>
+		<Header
+			title={APP_TITLE + appVersion}
+			devOpen={devOpen}
+			onDev={() => {
+				setSettingsOpen(false);
+				setDevOpen(!devOpen);
+			}}
+			onSettings={() => {
+				setDevOpen(false);
+				setSettingsOpen(!settingsOpen);
+			}}
+			onClose={() => ipcRenderer.send(IpcMessages.QUIT_CREWLINK)}
+		/>
 	);
 };
 
@@ -129,6 +91,7 @@ export default function App({ t }): JSX.Element {
 	const [state, setState] = useState<AppState>(AppState.MENU);
 	const [gameState, setGameState] = useState<AmongUsState>({} as AmongUsState);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [devOpen, setDevOpen] = useState(false);
 	const [diaOpen, setDiaOpen] = useState(true);
 	const [error, setError] = useState('');
 	const [updaterState, setUpdaterState] = useState<AutoUpdaterState>({
@@ -140,7 +103,9 @@ export default function App({ t }): JSX.Element {
 	const [settings, setSettings] = useState(SettingsStore.store);
 	const [hostLobbySettings, setHostLobbySettings] = useState(settings.localLobbySettings);
 	useEffect(() => {
-		SettingsStore.onDidAnyChange((newValue, _) => { setSettings(newValue as ISettings) });
+		SettingsStore.onDidAnyChange((newValue, _) => {
+			setSettings(newValue as ISettings);
+		});
 	}, []);
 
 	useEffect(() => {
@@ -217,10 +182,10 @@ export default function App({ t }): JSX.Element {
 	let page;
 	switch (state) {
 		case AppState.MENU:
-			page = <Menu t={t} error={error} />;
+			page = <Menu t={t} error={error} devOpen={devOpen} onDevClose={() => setDevOpen(false)} />;
 			break;
 		case AppState.VOICE:
-			page = <Voice t={t} error={error} />;
+			page = <Voice t={t} error={error} devOpen={devOpen} onDevClose={() => setDevOpen(false)} />;
 			break;
 	}
 
@@ -231,15 +196,18 @@ export default function App({ t }): JSX.Element {
 					<SettingsContext.Provider value={[settings, setSetting, setLobbySetting]}>
 						<StyledEngineProvider injectFirst>
 							<ThemeProvider theme={theme}>
-								<TitleBar settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} />
+								<TitleBar
+									settingsOpen={settingsOpen}
+									setSettingsOpen={setSettingsOpen}
+									devOpen={devOpen}
+									setDevOpen={setDevOpen}
+								/>
 								<Settings t={t} open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 								<Dialog fullWidth open={updaterState.state !== 'unavailable' && diaOpen}>
 									{updaterState.state === 'available' && updaterState.info && (
 										<DialogTitle>Update v{updaterState.info.version}</DialogTitle>
 									)}
-									{updaterState.state === 'error' && (
-										<DialogTitle>Updater Error</DialogTitle>
-									)}
+									{updaterState.state === 'error' && <DialogTitle>Updater Error</DialogTitle>}
 									{updaterState.state === 'downloading' && <DialogTitle>Updating...</DialogTitle>}
 									<DialogContent>
 										{updaterState.state === 'downloading' && updaterState.progress && (
@@ -265,7 +233,7 @@ export default function App({ t }): JSX.Element {
 											<Button
 												color="grey"
 												onClick={() => {
-													shell.openExternal("https://github.com/OhMyGuus/BetterCrewLink/releases/latest");
+													shell.openExternal('https://github.com/OhMyGuus/BetterCrewLink/releases/latest');
 												}}
 											>
 												Download Manually

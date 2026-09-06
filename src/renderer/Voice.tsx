@@ -1,6 +1,13 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
-import Avatar from './Avatar';
+import PlayerRow from './ui/PlayerRow';
+import DevPanel from './ui/DevPanel';
+import { HeaderLayer } from './ui/Header';
+import Pill from './ui/Pill';
+import RoundButton from './ui/RoundButton';
+import StatusDot from './ui/StatusDot';
+import { Icons } from './ui/icons';
+import { ui } from './ui/tokens';
 import { GameStateContext, HostSettingsContext, PlayerColorContext, SettingsContext } from './contexts';
 import {
 	AmongUsState,
@@ -19,10 +26,8 @@ import VAD from './vad';
 import { ISettings, playerConfigMap, ILobbySettings } from '../common/ISettings';
 import { IpcRendererMessages, IpcMessages, IpcOverlayMessages, IpcHandlerMessages } from '../common/ipc-messages';
 import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid';
 import makeStyles from '@mui/styles/makeStyles';
 import SupportLink from './SupportLink';
-import Divider from '@mui/material/Divider';
 import { validateClientPeerConfig } from './validateClientPeerConfig';
 // @ts-ignore
 import reverbOgx from 'arraybuffer-loader!../../static/sounds/reverb.ogx'; // @ts-ignore
@@ -32,11 +37,6 @@ import { CameraLocation, AmongUsMaps, MapType } from '../common/AmongusMap';
 import { ObsVoiceState } from '../common/ObsOverlay';
 import Footer from './Footer';
 import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import VolumeOff from '@mui/icons-material/VolumeOff';
-import VolumeUp from '@mui/icons-material/VolumeUp';
-import Mic from '@mui/icons-material/Mic';
-import MicOff from '@mui/icons-material/MicOff';
 import adapter from 'webrtc-adapter';
 import { VADOptions } from './vad';
 import { pushToTalkOptions } from './settings/SettingsStore';
@@ -123,73 +123,96 @@ const DEFAULT_ICE_CONFIG_TURN: RTCConfiguration = {
 export interface VoiceProps {
 	t: (key: string) => string;
 	error: string;
+	devOpen?: boolean;
+	onDevClose?: () => void;
 }
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
 	error: {
 		position: 'absolute',
-		top: '50%',
-		transform: 'translateY(-50%)',
-	},
-	root: {
-		paddingTop: theme.spacing(3),
-	},
-	top: {
+		top: ui.headerHeight,
+		left: 24,
+		right: 24,
+		bottom: ui.footerHeight,
 		display: 'flex',
+		flexDirection: 'column',
 		justifyContent: 'center',
-		alignItems: 'center',
+		'& .MuiTypography-root': {
+			fontFamily: ui.font,
+		},
 	},
-	right: {
+	body: {
+		position: 'absolute',
+		top: ui.headerHeight,
+		left: 24,
+		width: 321,
+		bottom: ui.footerHeight,
+		padding: '13px 6px',
+		boxSizing: 'border-box',
 		display: 'flex',
 		flexDirection: 'column',
 		alignItems: 'center',
-		justifyContent: 'center',
+		gap: 10,
+		overflowY: 'auto',
+		overflowX: 'hidden',
 	},
-	username: {
-		display: 'block',
+	notice: {
+		fontFamily: ui.font,
+		fontSize: 10,
+		opacity: 0.8,
 		textAlign: 'center',
-		fontSize: 20,
-		whiteSpace: 'nowrap',
-		maxWidth: '115px',
+		padding: '0 4px',
+		flexShrink: 0,
 	},
-	code: {
-		fontFamily: "'Source Code Pro', monospace",
-		display: 'block',
-		width: 'fit-content',
-		margin: '5px auto',
-		padding: 5,
+	centered: {
+		display: 'flex',
+		justifyContent: 'center',
+		width: '100%',
+		flexShrink: 0,
+	},
+	empty: {
+		fontFamily: ui.font,
+		fontSize: 11,
+		opacity: 0.6,
+		marginTop: 20,
+		userSelect: 'none',
+	},
+	counter: {
+		WebkitAppRegion: 'no-drag',
+		position: 'absolute',
+		left: 166,
+		top: 46,
+		width: 38,
+		height: 30,
 		borderRadius: 5,
-		fontSize: 28,
+		backgroundColor: ui.pill,
+		boxSizing: 'border-box',
+		padding: '0 0 0 9px',
+		display: 'flex',
+		flexDirection: 'column',
+		justifyContent: 'center',
+		alignItems: 'flex-start',
 	},
-	otherplayers: {
-		width: 225,
-		height: 225,
-		margin: '4px auto',
-		'& .MuiGrid-grid-xs-1': {
-			maxHeight: '8.3333333%',
-		},
-		'& .MuiGrid-grid-xs-2': {
-			maxHeight: '16.666667%',
-		},
-		'& .MuiGrid-grid-xs-3': {
-			maxHeight: '25%',
-		},
-		'& .MuiGrid-grid-xs-4': {
-			maxHeight: '33.333333%',
-		},
+	counterRow: {
+		display: 'flex',
+		alignItems: 'center',
+		gap: 5,
+		padding: 1,
+		height: 14,
+		boxSizing: 'border-box',
+		fontFamily: ui.font,
+		fontSize: 10,
+		lineHeight: '12px',
+		color: ui.pillText,
+		userSelect: 'none',
 	},
-	avatarWrapper: {
-		width: 80,
-		padding: theme.spacing(1),
-	},
-	muteButtons: {
-		paddingLeft: '5px',
-		paddingTop: '26px',
-		float: 'right',
-		display: 'grid',
-	},
-	left: { float: 'left' },
 }));
+
+const MicGlyph: React.FC = () => (
+	<svg viewBox="0 0 24 24" fill="white">
+		<path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" />
+	</svg>
+);
 
 const defaultlocalLobbySettings: ILobbySettings = {
 	maxDistance: 5.32,
@@ -215,7 +238,7 @@ radioOnAudio.volume = 0.02;
 // radiobeepAudio2.src = radioBeep2;
 // radiobeepAudio2.volume = 0.2;
 
-const Voice: React.FC<VoiceProps> = function ({ t, error: initialError }: VoiceProps) {
+const Voice: React.FC<VoiceProps> = function ({ t, error: initialError, devOpen, onDevClose }: VoiceProps) {
 	const [error, setError] = useState('');
 	const [settings, setSetting] = useContext(SettingsContext);
 
@@ -1332,106 +1355,109 @@ const Voice: React.FC<VoiceProps> = function ({ t, error: initialError }: VoiceP
 		impostorRadioClientId.current,
 	]);
 
+	const serverHost = useMemo(() => {
+		try {
+			return new URL(settings.serverURL).host;
+		} catch {
+			return settings.serverURL;
+		}
+	}, [settings.serverURL]);
+
+	const inLobby = !!myPlayer && gameState.lobbyCode !== 'MENU';
+	let voiceConnectedCount = 0;
+	let voicePendingCount = 0;
+	if (inLobby) {
+		for (const player of otherPlayers) {
+			const peer = playerSocketIdsRef.current[player.clientId];
+			const peerConnected = socketClients[peer]?.clientId === player.clientId || false;
+			if (peerConnected && audioConnected[peer]) voiceConnectedCount++;
+			else voicePendingCount++;
+		}
+	}
+
 	return (
-		<div className={classes.root}>
+		<>
+			<HeaderLayer>
+				<Pill left={61} top={46} width={94} title={myPlayer?.name}>
+					{myPlayer?.name ?? '\u2026'}
+				</Pill>
+				<div className={classes.counter} title="Players with voice / players still connecting">
+					<div className={classes.counterRow}>
+						<StatusDot variant="green" />
+						<span>{inLobby ? voiceConnectedCount : '-'}</span>
+					</div>
+					<div className={classes.counterRow}>
+						<StatusDot variant="yellow" />
+						<span>{inLobby ? voicePendingCount : '-'}</span>
+					</div>
+				</div>
+				<Pill
+					left={215}
+					top={46}
+					width={94}
+					mono={displayedLobbyCode !== 'MENU'}
+					title={displayedLobbyCode === 'MENU' ? t('game.menu') : displayedLobbyCode}
+				>
+					{displayedLobbyCode === 'MENU' ? t('game.menu') : displayedLobbyCode}
+				</Pill>
+				<RoundButton
+					left={336}
+					top={21}
+					title={mutedState || deafenedState ? 'Unmute microphone' : 'Mute microphone'}
+					danger={mutedState || deafenedState}
+					icon={mutedState || deafenedState ? Icons.micOff : undefined}
+					onClick={() => connectionStuff.current.toggleMute()}
+				>
+					<MicGlyph />
+				</RoundButton>
+				<RoundButton
+					left={336}
+					top={52}
+					title={deafenedState ? 'Undeafen' : 'Deafen'}
+					danger={deafenedState}
+					icon={Icons.headset}
+					onClick={() => connectionStuff.current.toggleDeafen()}
+				/>
+			</HeaderLayer>
 			{(error || initialError) && (
 				<div className={classes.error}>
 					<Typography align="center" variant="h6" color="error">
 						ERROR
 					</Typography>
-					<Typography align="center" style={{ whiteSpace: 'pre-wrap' }}>
+					<Typography align="center" style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>
 						{error}
 						{initialError}
 					</Typography>
 					<SupportLink />
 				</div>
 			)}
-			{(!error && !initialError) && (<>
-
-				<div className={classes.top}>
-					{myPlayer && gameState.lobbyCode !== 'MENU' && (
-						<>
-							<div className={classes.avatarWrapper}>
-								<Avatar
-									deafened={deafenedState}
-									muted={mutedState}
-									player={myPlayer}
-									borderColor={myPlayer?.shiftedColor == -1 ? '#2ecc71' : 'gray'}
-									connectionState={connected ? 'connected' : 'disconnected'}
-									isUsingRadio={myPlayer?.isImpostor && impostorRadioClientId.current === myPlayer.clientId}
-									talking={talking}
-									isAlive={!myPlayer.isDead}
-									size={100}
-									mod={gameState.mod}
-								/>
-							</div>
-						</>
+			{!error && !initialError && (
+				<div className={classes.body}>
+					{lobbySettings.deadOnly && (
+						<div className={classes.notice}>{t('settings.lobbysettings.ghost_only_warning2')}</div>
 					)}
-					<div className={classes.right}>
-						<div>
-							<div className={classes.left}>
-								{myPlayer && gameState?.gameState !== GameState.MENU && (
-									<span className={classes.username}>{myPlayer.name}</span>
-								)}
-								<span
-									className={classes.code}
-									style={{
-										background: gameState.lobbyCode === 'MENU' ? 'transparent' : '#3e4346',
-									}}
-								>
-									{displayedLobbyCode === 'MENU' ? t('game.menu') : displayedLobbyCode}
-								</span>
-							</div>
-							{gameState.lobbyCode !== 'MENU' && (
-								<div className={classes.muteButtons}>
-									<IconButton onClick={connectionStuff.current.toggleMute} size="small">
-										{mutedState || deafenedState ? <MicOff /> : <Mic />}
-									</IconButton>
-									<IconButton onClick={connectionStuff.current.toggleDeafen} size="small">
-										{deafenedState ? <VolumeOff /> : <VolumeUp />}
-									</IconButton>
-								</div>
-							)}
+					{lobbySettings.meetingGhostOnly && (
+						<div className={classes.notice}>{t('settings.lobbysettings.meetings_only_warning2')}</div>
+					)}
+					{displayedLobbyCode === 'MENU' && (
+						<div className={classes.centered}>
+							<Button
+								style={{ margin: '10px', fontFamily: ui.font }}
+								onClick={() => {
+									ipcRenderer.send(IpcHandlerMessages.OPEN_LOBBYBROWSER);
+								}}
+								color="primary"
+								variant="outlined"
+								size="small"
+							>
+								{t('buttons.public_lobby')}
+							</Button>
 						</div>
-					</div>
-				</div>
-				{lobbySettings.deadOnly && (
-					<div className={classes.top}>
-						<small style={{ padding: 0 }}>{t('settings.lobbysettings.ghost_only_warning2')}</small>
-					</div>
-				)}
-				{lobbySettings.meetingGhostOnly && (
-					<div className={classes.top}>
-						<small style={{ padding: 0 }}>{t('settings.lobbysettings.meetings_only_warning2')}</small>
-					</div>
-				)}
-				{gameState.lobbyCode && <Divider />}
-				{displayedLobbyCode === 'MENU' && (
-					<div className={classes.top}>
-						<Button
-							style={{ margin: '10px' }}
-							onClick={() => {
-								ipcRenderer.send(IpcHandlerMessages.OPEN_LOBBYBROWSER);
-							}}
-							color="primary"
-							variant="outlined"
-						>
-							{t('buttons.public_lobby')}
-						</Button>
-					</div>
-				)}
-				{myPlayer && gameState.lobbyCode !== 'MENU' && (
-					<Grid
-						container
-						spacing={1}
-						className={classes.otherplayers}
-						alignItems="flex-start"
-						alignContent="flex-start"
-						justifyContent="flex-start"
-					>
-						{otherPlayers.map((player) => {
+					)}
+					{inLobby &&
+						otherPlayers.map((player) => {
 							const peer = playerSocketIdsRef.current[player.clientId];
-							const connected = socketClients[peer]?.clientId === player.clientId || false;
+							const peerConnected = socketClients[peer]?.clientId === player.clientId || false;
 							const audio = audioConnected[peer];
 
 							if (!playerConfigs[player.nameHash]) {
@@ -1440,38 +1466,61 @@ const Voice: React.FC<VoiceProps> = function ({ t, error: initialError }: VoiceP
 							const socketConfig = playerConfigs[player.nameHash];
 
 							return (
-								<Grid item key={player.id} xs={getPlayersPerRow(otherPlayers.length)}>
-									<Avatar
-										connectionState={!connected ? 'disconnected' : audio ? 'connected' : 'novoice'}
-										player={player}
-										talking={!player.inVent && otherTalking[player.clientId]}
-										borderColor="#2ecc71"
-										isAlive={!otherDead[player.clientId]}
-										isUsingRadio={
-											myPlayer?.isImpostor &&
+								<PlayerRow
+									key={player.id}
+									player={player}
+									connectionState={!peerConnected ? 'disconnected' : audio ? 'connected' : 'novoice'}
+									talking={!player.inVent && otherTalking[player.clientId]}
+									isAlive={!otherDead[player.clientId]}
+									isUsingRadio={
+										(myPlayer?.isImpostor &&
 											!(player.disconnected || player.bugged) &&
-											impostorRadioClientId.current === player.clientId
-										}
-										size={50}
-										socketConfig={socketConfig}
-										onConfigChange={() => setSetting(`playerConfigMap.${player.nameHash}`, playerConfigs[player.nameHash])}
-										mod={gameState.mod}
-									/>
-								</Grid>
+											impostorRadioClientId.current === player.clientId) ||
+										false
+									}
+									socketConfig={socketConfig}
+									onConfigChange={() =>
+										setSetting(`playerConfigMap.${player.nameHash}`, playerConfigs[player.nameHash])
+									}
+									mod={gameState.mod}
+								/>
 							);
 						})}
-					</Grid>
-				)}
-			</>)}
-			{otherPlayers.length <= 6 && <Footer />}
-		</div>
+					{inLobby && otherPlayers.length === 0 && <div className={classes.empty}>Waiting for other players\u2026</div>}
+				</div>
+			)}
+			<DevPanel
+				open={!!devOpen}
+				onClose={onDevClose ?? (() => undefined)}
+				gameState={gameState}
+				playerColors={playerColors}
+				error={error || initialError}
+				voice={{
+					serverURL: settings.serverURL,
+					connected,
+					peerCount: Object.keys(peerConnections).length,
+					socketClients,
+					playerSocketIds: playerSocketIdsRef.current,
+					audioConnected,
+					otherTalking,
+					otherVAD,
+					otherDead,
+					playerConfigs,
+					impostorRadioClientId: impostorRadioClientId.current,
+					localTalking: talking,
+					muted: mutedState,
+					deafened: deafenedState,
+					lobbySettings,
+				}}
+			/>
+			<Footer
+				status={{
+					variant: connected ? 'green' : 'red',
+					label: connected ? `Server connected: ${serverHost}` : `Server disconnected: ${serverHost}`,
+				}}
+			/>
+		</>
 	);
 };
-
-type ValidPlayersPerRow = 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-function getPlayersPerRow(playerCount: number): ValidPlayersPerRow {
-	if (playerCount <= 9) return (12 / 3) as ValidPlayersPerRow;
-	else return Math.min(12, Math.floor(12 / Math.ceil(Math.sqrt(playerCount)))) as ValidPlayersPerRow;
-}
 
 export default Voice;

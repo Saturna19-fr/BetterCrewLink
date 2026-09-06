@@ -17,6 +17,9 @@ declare module "@mui/material" {
 
 // Create a theme instance.
 const theme = createTheme({
+	typography: {
+		fontFamily: "'Roboto', 'Varela', sans-serif",
+	},
 	palette: {
 		primary: {
 			main: purple[300],
