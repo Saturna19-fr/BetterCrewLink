@@ -96,13 +96,13 @@ jobs:
           path: 'dist/win-unpacked'
 
   # Publishes the installers as a GitHub Release so the .exe / .AppImage can be downloaded
-  # directly (no artifact zip). Pushes to `nightly` update a rolling "nightly" pre-release;
+  # directly (no artifact zip). Pushes to `main` or `nightly` update a rolling "nightly" pre-release;
   # pushing a tag like `v3.2.0` creates a proper release for that version.
   release:
     needs: build
     if: >-
       github.event_name != 'pull_request' &&
-      (github.ref == 'refs/heads/nightly' || startsWith(github.ref, 'refs/tags/v'))
+      (github.ref == 'refs/heads/nightly' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
 
     steps:
@@ -124,7 +124,7 @@ jobs:
         run: ls -la artifacts
 
       - name: Reset rolling nightly tag
-        if: ${{ github.ref == 'refs/heads/nightly' }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release delete nightly --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || true
@@ -137,7 +137,7 @@ jobs:
           prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
-          body: ${{ github.ref == 'refs/heads/nightly' && format('Automatic build of `nightly` at {0}.', github.sha) || '' }}
+          body: ${{ !startsWith(github.ref, 'refs/tags/v') && format('Automatic build of `{0}` at {1}.', github.ref_name, github.sha) || '' }}
           files: |
             artifacts/*.exe
             artifacts/*.AppImage
