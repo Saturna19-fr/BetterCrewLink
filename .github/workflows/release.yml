@@ -3,6 +3,9 @@ name: Release
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -38,7 +41,7 @@ jobs:
       - name: Build App
         run: npm run ${{ matrix.dist }}
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
 
       - name: Upload Installer
         uses: actions/upload-artifact@v7
