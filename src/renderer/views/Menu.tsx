@@ -1,78 +1,106 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import Footer from '../components/Footer';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import SupportLink from '../components/SupportLink';
 import LaunchButton from '../components/LaunchButton';
 import Box from '@mui/material/Box';
-import { useTheme } from '@mui/material/styles';
+import { HeaderLayer } from '../ui/Header';
+import Pill from '../ui/Pill';
+import DevPanel from '../ui/DevPanel';
+import { ui } from '../ui/tokens';
+import { GameStateContext, PlayerColorContext } from '../state/contexts';
 
-const useStyles = () => {
-	const theme = useTheme();
-	return {
-		root: {
-			width: '100vw',
-			height: '100vh',
-			paddingTop: theme.spacing(3),
+const styles = {
+	body: {
+		position: 'absolute',
+		top: ui.headerHeight,
+		left: 24,
+		width: 321,
+		bottom: ui.footerHeight,
+		padding: '13px 6px',
+		boxSizing: 'border-box',
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: '10px',
+		overflowY: 'auto',
+	},
+	error: {
+		paddingTop: '8px',
+		'& .MuiTypography-root': {
+			fontFamily: ui.font,
 		},
-		error: {
-			paddingTop: theme.spacing(4),
-		},
-		menu: {
-			display: 'flex',
-			flexDirection: 'column',
-			alignItems: 'center',
-			justifyContent: 'start',
-		},
-		waiting: {
-			fontSize: 20,
-			marginTop: '12px',
-			marginBottom: '12px',
-		},
-		open_message: {
-			fontSize: 24,
-			marginTop: '15px',
-			marginBottom: '5px',
-		},
-	};
-};
+	},
+	waiting: {
+		fontFamily: ui.font,
+		fontWeight: 700,
+		fontSize: 14,
+		marginTop: '6px',
+		userSelect: 'none',
+	},
+	open_message: {
+		fontFamily: ui.font,
+		fontSize: 12,
+		opacity: 0.8,
+		marginTop: '10px',
+		marginBottom: '2px',
+		userSelect: 'none',
+	},
+} as const;
 
 export interface MenuProps {
 	t: (key: string) => string;
 	error: string;
+	devOpen?: boolean;
+	onDevClose?: () => void;
 }
 
-const Menu: React.FC<MenuProps> = function ({ t, error }: MenuProps) {
-	const classes = useStyles();
+const Menu: React.FC<MenuProps> = function ({ t, error, devOpen, onDevClose }: MenuProps) {
+	const gameState = useContext(GameStateContext);
+	const playerColors = useContext(PlayerColorContext);
 
 	return (
-		<Box sx={classes.root}>
-			<Box sx={classes.menu}>
+		<>
+			<HeaderLayer>
+				<Pill left={61} top={46} width={248} title={t('game.waiting')}>
+					{t('game.waiting')}
+				</Pill>
+			</HeaderLayer>
+			<Box sx={styles.body}>
 				{error ? (
-					<Box sx={classes.error}>
+					<Box sx={styles.error}>
 						<Typography align="center" variant="h6" color="error">
 							{t('game.error')}
 						</Typography>
-						<Typography align="center" style={{ whiteSpace: 'pre-wrap' }}>
+						<Typography align="center" style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>
 							{error}
 						</Typography>
 						<SupportLink />
 					</Box>
 				) : (
 					<>
-						<Box component="span" sx={classes.waiting}>
+						<CircularProgress color="primary" size={36} />
+						<Box component="span" sx={styles.waiting}>
 							{t('game.waiting')}
 						</Box>
-						<CircularProgress color="primary" size={40} />
-						<Box component="span" sx={classes.open_message}>
+						<Box component="span" sx={styles.open_message}>
 							{t('game.open')}
 						</Box>
 						<LaunchButton t={t} />
 					</>
 				)}
-				<Footer />
 			</Box>
-		</Box>
+			<DevPanel
+				open={!!devOpen}
+				onClose={onDevClose ?? (() => undefined)}
+				gameState={gameState}
+				playerColors={playerColors}
+				error={error}
+			/>
+			<Footer />
+		</>
 	);
 };
 

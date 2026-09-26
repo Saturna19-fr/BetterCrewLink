@@ -14,6 +14,30 @@ body {
 	height: 100vh;
 }
 
+/* Main window: transparent so the 17px rounded corners of the design show through. */
+body.main-window {
+	background-color: transparent;
+	font-family: 'Roboto', 'Varela', sans-serif;
+}
+
+body.main-window,
+body.main-window #app {
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
+body.main-window #app {
+	position: relative;
+	background-color: #242424;
+	border-radius: 17px;
+}
+
+/* MUI dialogs are portalled outside #app; keep their backdrop inside the rounded window. */
+body.main-window .MuiBackdrop-root {
+	border-radius: 17px;
+}
+
 .otherplayers > * {
 	margin: 5px;
 }

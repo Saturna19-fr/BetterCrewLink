@@ -9,13 +9,9 @@ import { startOverlayBridge } from '../state/overlayBridge';
 import { startSettingsWindowBridge } from '../state/settingsWindowBridge';
 import { useLanguage } from '../language/useLanguage';
 import { ThemeProvider, StyledEngineProvider } from '@mui/material/styles';
-import Box from '@mui/material/Box';
+import Header from '../ui/Header';
 import { AutoUpdaterState, IpcHandlerMessages, IpcMessages, IpcRendererMessages } from '../../common/ipc-messages';
 import theme from '../lib/theme';
-import SettingsIcon from '@mui/icons-material/Settings';
-import RefreshSharpIcon from '@mui/icons-material/RefreshSharp';
-import CloseIcon from '@mui/icons-material/Close';
-import IconButton from '@mui/material/IconButton';
 import Dialog from '@mui/material/Dialog';
 import LinearProgress from '@mui/material/LinearProgress';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -26,6 +22,9 @@ import Button from '@mui/material/Button';
 import prettyBytes from 'pretty-bytes';
 import { createRoot } from 'react-dom/client';
 import '../css/index.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+import '@fontsource/roboto/700.css';
 import 'source-code-pro/source-code-pro.css';
 import 'typeface-varela/index.css';
 import '../language/i18n';
@@ -38,66 +37,32 @@ if (typeof window !== 'undefined' && window.location) {
 	appVersion = ' v' + query.get('version') || '';
 }
 
-const useStyles = () => ({
-	root: {
-		position: 'absolute',
-		width: '100vw',
-		height: theme.spacing(3),
-		backgroundColor: '#1d1a23',
-		top: 0,
-		WebkitAppRegion: 'drag',
-		zIndex: 100,
-	},
-	title: {
-		width: '100%',
-		textAlign: 'center',
-		display: 'block',
-		height: theme.spacing(3),
-		lineHeight: theme.spacing(3),
-		color: theme.palette.primary.main,
-	},
-	button: {
-		WebkitAppRegion: 'no-drag',
-		marginLeft: 'auto',
-		padding: 0,
-		position: 'absolute',
-		top: 0,
-	},
-});
+const APP_TITLE = 'BetterCrewLink - A Saturn Edition';
 
-const RawTitleBar: React.FC = function () {
-	const classes = useStyles();
+// Rounded, transparent window styles in index.css only apply to the main window.
+document.body.classList.add('main-window');
+
+interface TitleBarProps {
+	devOpen: boolean;
+	setDevOpen: (open: boolean) => void;
+}
+
+const RawTitleBar: React.FC<TitleBarProps> = function ({ devOpen, setDevOpen }: TitleBarProps) {
 	return (
-		<Box sx={classes.root}>
-			<Box component="span" sx={classes.title} style={{ marginLeft: 10 }}>
-				BetterCrewLink{appVersion}
-			</Box>
-			<IconButton
-				sx={classes.button}
-				style={{ left: 0 }}
-				size="small"
-				onClick={() => ipcRenderer.send(IpcHandlerMessages.OPEN_SETTINGS)}
-			>
-				<SettingsIcon htmlColor="#777" />
-			</IconButton>
-			<IconButton sx={classes.button} style={{ left: 22 }} size="small" onClick={() => ipcRenderer.send('reload')}>
-				<RefreshSharpIcon htmlColor="#777" />
-			</IconButton>
-			<IconButton
-				sx={classes.button}
-				style={{ right: 0 }}
-				size="small"
-				onClick={() => ipcRenderer.send(IpcMessages.QUIT_CREWLINK)}
-			>
-				<CloseIcon htmlColor="#777" />
-			</IconButton>
-		</Box>
+		<Header
+			title={APP_TITLE + appVersion}
+			devOpen={devOpen}
+			onDev={() => setDevOpen(!devOpen)}
+			onSettings={() => ipcRenderer.send(IpcHandlerMessages.OPEN_SETTINGS)}
+			onClose={() => ipcRenderer.send(IpcMessages.QUIT_CREWLINK)}
+		/>
 	);
 };
 
 const TitleBar = React.memo(RawTitleBar);
 
 export default function App({ t }: WithTranslation): React.JSX.Element {
+	const [devOpen, setDevOpen] = useState(false);
 	const [diaOpen, setDiaOpen] = useState(true);
 	const [updaterState, setUpdaterState] = useState<AutoUpdaterState>({ state: 'unavailable' });
 
@@ -153,7 +118,7 @@ export default function App({ t }: WithTranslation): React.JSX.Element {
 				<SettingsContext.Provider value={[settings, setSetting]}>
 					<StyledEngineProvider injectFirst>
 						<ThemeProvider theme={theme}>
-							<TitleBar />
+							<TitleBar devOpen={devOpen} setDevOpen={setDevOpen} />
 							<Dialog fullWidth open={updaterState.state !== 'unavailable' && diaOpen}>
 								{updaterState.state === 'available' && updaterState.info && (
 									<DialogTitle>Update v{updaterState.info.version}</DialogTitle>
@@ -201,7 +166,11 @@ export default function App({ t }: WithTranslation): React.JSX.Element {
 									</DialogActions>
 								)}
 							</Dialog>
-							{gameOpen ? <VoiceView t={t} error={error} /> : <Menu t={t} error={error} />}
+							{gameOpen ? (
+								<VoiceView t={t} error={error} devOpen={devOpen} onDevClose={() => setDevOpen(false)} />
+							) : (
+								<Menu t={t} error={error} devOpen={devOpen} onDevClose={() => setDevOpen(false)} />
+							)}
 						</ThemeProvider>
 					</StyledEngineProvider>
 				</SettingsContext.Provider>
